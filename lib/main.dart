@@ -1,9 +1,16 @@
 import 'dart:io';
 
-import 'package:dispace/api/sso_api.dart';
+import 'api/di_api.dart';
 import 'package:flutter/material.dart';
 
-void main() {
+import 'api/sso_api.dart';
+import 'services/hive.dart' as Hive;
+
+import 'api/di/users.dart';
+
+void main() async {
+  await Hive.initializeHive();
+
   runApp(MyApp());
 }
 
@@ -54,13 +61,13 @@ class _MyHomePageState extends State<MyHomePage> {
   SsoApi ssoApi = new SsoApi();
   String dispace = "Empty";
   bool isGuest = false;
+  DiUser? user;
 
   void login() async {
     var _cookies = await ssoApi.initializeCookies();
     await ssoApi.getAuthId();
     var _token = await ssoApi.getToken("", "");
 
-    await ssoApi.linkToDispace(_token, _cookies);
     setState(() {
       cookies = _cookies;
       token = _token;
@@ -74,6 +81,22 @@ class _MyHomePageState extends State<MyHomePage> {
       isGuest = _isGuest;
     });
   }
+
+  void link() async {
+    await ssoApi.linkToDispace(token, cookies);
+  }
+
+  void getUser() async {
+    final diApi = DiApi(dispace);
+
+    await diApi.initialize();
+    final _user = await diApi.getUserById(84873);
+
+    setState(() {
+      user = _user;
+    });
+    return;
+}
 
   @override
   Widget build(BuildContext context) {
@@ -112,9 +135,14 @@ class _MyHomePageState extends State<MyHomePage> {
             Text(
               'DiSpace Cookie: $dispace',
             ),
+            Text(
+              "Country of user: ${user == null ? "don't know" : user!.country}"
+            ),
             Text("Is guest: $isGuest"),
-            TextButton(onPressed: login, child: Text("Try to log in"),),
-            TextButton(onPressed: testGuest, child: Text("Check for guest"),)
+            TextButton(onPressed: login, child: const Text("Try to log in"),),
+            TextButton(onPressed: testGuest, child: const Text("Check for guest"),),
+            TextButton(onPressed: link, child: const Text("Send link request"),),
+            TextButton(onPressed: getUser, child: const Text("Get user by id"),)
           ],
         ),
       ),

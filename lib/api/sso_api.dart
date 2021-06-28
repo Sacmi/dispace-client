@@ -5,26 +5,34 @@ import 'package:dispace/api/sso/exceptions.dart';
 import 'package:dispace/api/sso/form_response.dart';
 import 'package:dispace/api/sso/token_response.dart';
 import 'package:dispace/services/utils.dart';
-import 'package:http/http.dart' as Http;
-
-enum SsoResults {
-  Success,
-  AuthIdMissing,
-  FormNotFilled,
-  InvalidCredentials
-}
+import 'package:http/io_client.dart';
 
 class SsoApi {
   static const _authenticate_url = "https://login.nstu.ru/ssoservice/json/authenticate?realm=%2Fido&goto=https%3A%2F%2Fdispace.edu.nstu.ru%2Fuser%2Fproceed%3Flogin%3Dopenam%26password%3Dauth";
   static const _login_url = "https://login.nstu.ru/ssoservice/json/authenticate";
   static const _linker_url = "https://dispace.edu.nstu.ru/user/proceed?login=openam&password=auth";
   static const _initial_url = "https://dispace.edu.nstu.ru/";
-  static const _user_agent = "Mozilla/5.0 (X11; Linux x86_64; rv:89.0) Gecko/20100101 Firefox/89.0";
+  static const _user_agent = "Dart/2.13 (dart:io)";
 
   String _authId = '';
   SsoFormResponse _ssoResponse = new SsoFormResponse("", List.empty(), "", "", "");
 
+  IOClient _client = IOClient();
+
   String get authId => _authId;
+
+  SsoApi() {
+    // String proxy = Platform.isAndroid ? '192.168.1.4:8866' : 'localhost:8866';
+    HttpClient httpClient = new HttpClient();
+    // httpClient.findProxy = (uri) {
+    //   return "PROXY $proxy;";
+    // };
+    httpClient.userAgent = _user_agent;
+
+    // httpClient.badCertificateCallback =
+    // ((X509Certificate cert, String host, int port) => Platform.isAndroid);
+    _client = IOClient(httpClient);
+  }
 
   Future<List<Cookie>> initializeCookies() async {
     final uri = Uri.parse(_initial_url),
@@ -50,7 +58,7 @@ class SsoApi {
   Future<bool> getAuthId() async {
     final uri = Uri.parse(_authenticate_url);
 
-    final response = await Http.post(uri);
+    final response = await _client.post(uri);
     if (response.statusCode != 200) {
       return false;
     }
@@ -75,7 +83,7 @@ class SsoApi {
     _ssoResponse.setPassword(password);
 
     final formJson = jsonEncode(_ssoResponse.toJson());
-    final response = await Http.post(uri, body: formJson, headers: {
+    final response = await _client.post(uri, body: formJson, headers: {
       "Content-Type": "application/json"
     });
 
@@ -94,66 +102,37 @@ class SsoApi {
     return tokenRes.tokenId;
   }
 
+  Future<int> _createLinkReq(Uri uri, List<Cookie> cookies) async {
+    final cookieStr = stringifyCookies(cookies);
+
+    final res = await _client.get(uri, headers: {
+      "Cookie": cookieStr,
+    });
+
+    return res.statusCode;
+  }
+
   Future<bool> linkToDispace(String token, List<Cookie> cookies) async {
     final cookieList = new List<Cookie>.of(cookies, growable: true),
         ssoCookie = Cookie("NstuSsoToken", token),
         uri = Uri.parse(_linker_url);
 
-    final client = new HttpClient();
-    client.userAgent = _user_agent;
-
     cookieList.add(ssoCookie);
 
-    final request = await client.getUrl(uri);
-    request.cookies.addAll(cookieList);
-    request.followRedirects = false;
-    request.headers.add(HttpHeaders.hostHeader, "dispace.edu.nstu.ru");
-    request.headers.add(HttpHeaders.acceptHeader, "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8");
-    request.headers.add(HttpHeaders.acceptLanguageHeader, "ru,en-US;q=0.7,en;q=0.3");
-    request.headers.add(HttpHeaders.acceptEncodingHeader, "gzip, deflate, br");
-    request.headers.add(HttpHeaders.connectionHeader, "keep-alive");
-    request.headers.add(HttpHeaders.refererHeader, "https://login.nstu.ru/");
-    request.headers.add(HttpHeaders.cacheControlHeader, "no-cache");
-    request.headers.add(HttpHeaders.pragmaHeader, "no-cache");
-    request.headers.add("Upgrade-Insecure-Requests", "1");
-    request.headers.add("Sec-GPC", "1");
+    var resAuth = await _createLinkReq(uri, cookieList);
 
-    final test = stringifyCookies(cookieList);
-
-    final response = await request.close();
-    await response.listen((event) { }).asFuture();
-
-    final qqq = response.headers;
-    final qqqq = response.connectionInfo;
-
-    return response.statusCode == 302;
-
-    /*final response = await Http.get(uri, headers: {
-      "User-Agent": _user_agent,
-      "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*//*;q=0.8",
-      "Accept-Language": "ru,en-US;q=0.7,en;q=0.3",
-      "Connection": "keep-alive",
-      "Referer": "",
-      "Cookie": test,
-    });
-
-    final te = response.body;
-
-    return response.statusCode == 302;*/
+    return resAuth == 200;
   }
 
   Future<bool> test(List<Cookie> cookies) async {
     final uri = Uri.parse(_initial_url);
 
-    final str = stringifyCookies(cookies);
-
-    final response = await Http.get(uri, headers: {
+    final response = await _client.get(uri, headers: {
       "Cookie": stringifyCookies(cookies),
       "Connection": "keep-alive",
       "Cache-Control": "max-age=0",
       "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
       "Host": "dispace.edu.nstu.ru",
-      "User-Agent": _user_agent,
     });
 
     final html = response.body;

@@ -4,55 +4,62 @@ import 'dart:io';
 import 'package:dispace/api/sso/exceptions.dart';
 import 'package:dispace/api/sso/form_response.dart';
 import 'package:dispace/api/sso/token_response.dart';
-import 'package:dispace/services/utils.dart';
+import 'package:dispace/models/account.dart';
+import 'package:dispace/models/auth.dart';
+import 'package:dispace/services/constants.dart';
+import 'package:dispace/services/cookie.dart';
+import 'package:hive/hive.dart';
+import 'package:html/parser.dart';
+import 'package:http/http.dart';
 import 'package:http/io_client.dart';
 
 class SsoApi {
-  static const _authenticate_url = "https://login.nstu.ru/ssoservice/json/authenticate?realm=%2Fido&goto=https%3A%2F%2Fdispace.edu.nstu.ru%2Fuser%2Fproceed%3Flogin%3Dopenam%26password%3Dauth";
-  static const _login_url = "https://login.nstu.ru/ssoservice/json/authenticate";
-  static const _linker_url = "https://dispace.edu.nstu.ru/user/proceed?login=openam&password=auth";
+  static const _authenticate_url =
+      "https://login.nstu.ru/ssoservice/json/authenticate?realm=%2Fido&goto=https%3A%2F%2Fdispace.edu.nstu.ru%2Fuser%2Fproceed%3Flogin%3Dopenam%26password%3Dauth";
+  static const _login_url =
+      "https://login.nstu.ru/ssoservice/json/authenticate";
+  static const _linker_url =
+      "https://dispace.edu.nstu.ru/user/proceed?login=openam&password=auth";
   static const _initial_url = "https://dispace.edu.nstu.ru/";
-  static const _user_agent = "Dart/2.13 (dart:io)";
 
   String _authId = '';
-  SsoFormResponse _ssoResponse = new SsoFormResponse("", List.empty(), "", "", "");
+  SsoFormResponse _ssoResponse =
+      new SsoFormResponse("", List.empty(), "", "", "");
 
   IOClient _client = IOClient();
+  List<Cookie> _cookies = List.empty(growable: true);
+  String _session = "";
+  String _token = "";
 
   String get authId => _authId;
+  String get session => _session;
+  String get token => _token;
 
   SsoApi() {
-    // String proxy = Platform.isAndroid ? '192.168.1.4:8866' : 'localhost:8866';
     HttpClient httpClient = new HttpClient();
-    // httpClient.findProxy = (uri) {
-    //   return "PROXY $proxy;";
-    // };
-    httpClient.userAgent = _user_agent;
 
-    // httpClient.badCertificateCallback =
-    // ((X509Certificate cert, String host, int port) => Platform.isAndroid);
     _client = IOClient(httpClient);
   }
 
-  Future<List<Cookie>> initializeCookies() async {
+  Future<void> initializeCookies() async {
     final uri = Uri.parse(_initial_url),
         request = await HttpClient().getUrl(uri),
-        response = await request.close(),
-        cookieList = List<Cookie>.empty(growable: true);
+        response = await request.close();
 
-    await response.listen((event) { }).asFuture();
+    await response.listen((event) {}).asFuture();
 
     if (response.statusCode != 200) {
-      throw new SsoConnectionException("Tried to get DiSpace cookies, but status code is ${response.statusCode}");
+      throw new SsoConnectionException(
+          "Tried to get DiSpace cookies, but status code is ${response.statusCode}");
     }
 
     for (final cookie in response.cookies) {
-      if (cookieList.where((element) => cookie.name == element.name).isEmpty) {
-        cookieList.add(cookie);
+      if (_cookies.where((element) => cookie.name == element.name).isEmpty) {
+        _cookies.add(cookie);
       }
     }
 
-    return List.of(cookieList, growable: false);
+    _session = CookieUtils.getCookieValue("dispace", _cookies);
   }
 
   Future<bool> getAuthId() async {
@@ -73,9 +80,14 @@ class SsoApi {
     return true;
   }
 
-  Future<String> getToken(String email, String password) async {
-    if (!_ssoResponse.isCorrect)
-      throw new SsoAuthIdEmptyException();
+  Future<void> login(String email, String password) async {
+    if (email.isEmpty)
+      throw new SsoInvalidCredentialsException("Email must be not empty");
+
+    if (password.isEmpty)
+      throw new SsoInvalidCredentialsException("Password must be not empty");
+
+    if (!_ssoResponse.isCorrect) throw new SsoAuthIdEmptyException();
 
     final uri = Uri.parse(_login_url);
 
@@ -83,9 +95,8 @@ class SsoApi {
     _ssoResponse.setPassword(password);
 
     final formJson = jsonEncode(_ssoResponse.toJson());
-    final response = await _client.post(uri, body: formJson, headers: {
-      "Content-Type": "application/json"
-    });
+    final response = await _client.post(uri,
+        body: formJson, headers: {"Content-Type": "application/json"});
 
     switch (response.statusCode) {
       case 401:
@@ -93,50 +104,76 @@ class SsoApi {
       case 200:
         break;
       default:
-        throw new SsoConnectionException("Tried to receive token, but status code is ${response.statusCode}");
+        throw new SsoConnectionException(
+            "Tried to receive token, but status code is ${response.statusCode}");
     }
 
     final json = jsonDecode(response.body);
     final tokenRes = SsoTokenResponse.fromJson(json);
 
-    return tokenRes.tokenId;
+    _cookies.add(new Cookie("NstuSsoToken", tokenRes.tokenId));
+
+    _token = tokenRes.tokenId;
   }
 
-  Future<int> _createLinkReq(Uri uri, List<Cookie> cookies) async {
-    final cookieStr = stringifyCookies(cookies);
-
+  Future<Response> _createLinkReq(Uri uri) async {
     final res = await _client.get(uri, headers: {
-      "Cookie": cookieStr,
+      "cookie": CookieUtils.stringifyCookies(_cookies),
     });
 
-    return res.statusCode;
+    return res;
   }
 
-  Future<bool> linkToDispace(String token, List<Cookie> cookies) async {
-    final cookieList = new List<Cookie>.of(cookies, growable: true),
-        ssoCookie = Cookie("NstuSsoToken", token),
-        uri = Uri.parse(_linker_url);
+  Future<void> authToDispace() async {
+    final uri = Uri.parse(_linker_url);
 
-    cookieList.add(ssoCookie);
+    var response = await _createLinkReq(uri);
 
-    var resAuth = await _createLinkReq(uri, cookieList);
+    if (response.statusCode != 200) {
+      throw new SsoConnectionException(
+          "Tried to receive token, but status code is ${response.statusCode}");
+    }
 
-    return resAuth == 200;
+    _setAuthInfo();
+    _setUserInfo(response.body);
   }
 
-  Future<bool> test(List<Cookie> cookies) async {
+  Future<bool> test() async {
     final uri = Uri.parse(_initial_url);
 
     final response = await _client.get(uri, headers: {
-      "Cookie": stringifyCookies(cookies),
-      "Connection": "keep-alive",
-      "Cache-Control": "max-age=0",
-      "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
-      "Host": "dispace.edu.nstu.ru",
+      "cookie": CookieUtils.stringifyCookies(_cookies),
     });
 
     final html = response.body;
 
     return html.contains("Гость");
+  }
+
+  Future<void> _setUserInfo(String html) async {
+    final box = Hive.box<Account>(Constants.accountBoxName);
+    await box.clear();
+
+    final document = parse(html);
+    final userInput = document.getElementById("user_info");
+
+    if (userInput == null) throw '';
+
+    final surname = userInput.attributes["surname"]!;
+    final name = userInput.attributes["name"]!;
+    final patronymic = userInput.attributes["patronymic"]!;
+    final userId = int.parse(userInput.attributes["user_id"]!);
+
+    final account = Account(userId, surname, name, patronymic);
+    await box.add(account);
+  }
+
+  Future<void> _setAuthInfo() async {
+    final box = Hive.box<Auth>(Constants.authBoxName);
+    await box.clear();
+
+    final auth = new Auth(session, token, DateTime.now());
+
+    await box.add(auth);
   }
 }

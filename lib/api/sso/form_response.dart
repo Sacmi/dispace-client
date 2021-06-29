@@ -2,21 +2,22 @@ class SsoFormResponse {
   String _authId;
   List<_Callbacks> _callbacks = List<_Callbacks>.empty(growable: true);
   String _header;
-  String _stage ;
+  String _stage;
   String _template;
 
-  bool get isCorrect => _authId.isNotEmpty && _header.isNotEmpty
-      && _stage.isNotEmpty && _template.isEmpty && _callbacks.length == 2;
+  bool get isCorrect =>
+      _authId.isNotEmpty &&
+      _header.isNotEmpty &&
+      _stage.isNotEmpty &&
+      _template.isEmpty &&
+      _callbacks.length == 2;
 
-  bool get canLogin => _callbacks[0]._input[0]._value.isNotEmpty
-      && _callbacks[1]._input[0]._value.isNotEmpty;
+  bool get canLogin =>
+      _callbacks[0]._input[0]._value.isNotEmpty &&
+      _callbacks[1]._input[0]._value.isNotEmpty;
 
   SsoFormResponse(
-      this._authId,
-      this._callbacks,
-      this._header,
-      this._stage,
-      this._template);
+      this._authId, this._callbacks, this._header, this._stage, this._template);
 
   String get authId => _authId;
 

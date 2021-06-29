@@ -1,15 +1,10 @@
-import 'dart:io';
-
-import 'api/di_api.dart';
 import 'package:flutter/material.dart';
 
-import 'api/sso_api.dart';
-import 'services/hive.dart' as Hive;
-
-import 'api/di/users.dart';
+import 'pages/main_page.dart';
+import 'services/hive.dart';
 
 void main() async {
-  await Hive.initializeHive();
+  await initializeHive();
 
   runApp(MyApp());
 }
@@ -19,7 +14,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Flutter Demo',
+      title: 'DiSpace Demo',
       theme: ThemeData(
         // This is the theme of your application.
         //
@@ -30,122 +25,9 @@ class MyApp extends StatelessWidget {
         // or simply save your changes to "hot reload" in a Flutter IDE).
         // Notice that the counter didn't reset back to zero; the application
         // is not restarted.
-        primarySwatch: Colors.red,
+        primarySwatch: Colors.blue,
       ),
-      home: MyHomePage(title: 'Flutter Demo Home Page'),
-    );
-  }
-}
-
-class MyHomePage extends StatefulWidget {
-  MyHomePage({Key? key, required this.title}) : super(key: key);
-
-  // This widget is the home page of your application. It is stateful, meaning
-  // that it has a State object (defined below) that contains fields that affect
-  // how it looks.
-
-  // This class is the configuration for the state. It holds the values (in this
-  // case the title) provided by the parent (in this case the App widget) and
-  // used by the build method of the State. Fields in a Widget subclass are
-  // always marked "final".
-
-  final String title;
-
-  @override
-  _MyHomePageState createState() => _MyHomePageState();
-}
-
-class _MyHomePageState extends State<MyHomePage> {
-  String token = "";
-  List<Cookie> cookies = List<Cookie>.empty();
-  SsoApi ssoApi = new SsoApi();
-  String dispace = "Empty";
-  bool isGuest = false;
-  DiUser? user;
-
-  void login() async {
-    var _cookies = await ssoApi.initializeCookies();
-    await ssoApi.getAuthId();
-    var _token = await ssoApi.getToken("", "");
-
-    setState(() {
-      cookies = _cookies;
-      token = _token;
-      dispace = _cookies.singleWhere((element) => element.name == "dispace").value;
-    });
-  }
-
-  void testGuest() async {
-    final _isGuest = await ssoApi.test(cookies);
-    setState(() {
-      isGuest = _isGuest;
-    });
-  }
-
-  void link() async {
-    await ssoApi.linkToDispace(token, cookies);
-  }
-
-  void getUser() async {
-    final diApi = DiApi(dispace);
-
-    await diApi.initialize();
-    final _user = await diApi.getUserById(84873);
-
-    setState(() {
-      user = _user;
-    });
-    return;
-}
-
-  @override
-  Widget build(BuildContext context) {
-    // This method is rerun every time setState is called, for instance as done
-    // by the _incrementCounter method above.
-    //
-    // The Flutter framework has been optimized to make rerunning build methods
-    // fast, so that you can just rebuild anything that needs updating rather
-    // than having to individually change instances of widgets.
-    return Scaffold(
-      appBar: AppBar(
-        // Here we take the value from the MyHomePage object that was created by
-        // the App.build method, and use it to set our appbar title.
-        title: Text(widget.title),
-      ),
-      body: Center(
-        // Center is a layout widget. It takes a single child and positions it
-        // in the middle of the parent.
-        child: Column(
-          // Column is also a layout widget. It takes a list of children and
-          // arranges them vertically. By default, it sizes itself to fit its
-          // children horizontally, and tries to be as tall as its parent.
-          //
-          // Invoke "debug painting" (press "p" in the console, choose the
-          // "Toggle Debug Paint" action from the Flutter Inspector in Android
-          // Studio, or the "Toggle Debug Paint" command in Visual Studio Code)
-          // to see the wireframe for each widget.
-          //
-          // Column has various properties to control how it sizes itself and
-          // how it positions its children. Here we use mainAxisAlignment to
-          // center the children vertically; the main axis here is the vertical
-          // axis because Columns are vertical (the cross axis would be
-          // horizontal).
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: <Widget>[
-            Text(
-              'DiSpace Cookie: $dispace',
-            ),
-            Text(
-              "Country of user: ${user == null ? "don't know" : user!.country}"
-            ),
-            Text("Is guest: $isGuest"),
-            TextButton(onPressed: login, child: const Text("Try to log in"),),
-            TextButton(onPressed: testGuest, child: const Text("Check for guest"),),
-            TextButton(onPressed: link, child: const Text("Send link request"),),
-            TextButton(onPressed: getUser, child: const Text("Get user by id"),)
-          ],
-        ),
-      ),
+      home: MyHomePage(),
     );
   }
 }

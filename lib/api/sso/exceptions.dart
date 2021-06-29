@@ -8,10 +8,6 @@ class SsoConnectionException implements Exception {
   SsoConnectionException(this.cause);
 }
 
-class SsoCookiesEmptyException implements Exception {
+class SsoCookiesEmptyException implements Exception {}
 
-}
-
-class SsoAuthIdEmptyException implements Exception {
-
-}
+class SsoAuthIdEmptyException implements Exception {}

@@ -1,3 +1,6 @@
+import 'package:dispace/models/account.dart';
+import 'package:dispace/services/constants.dart';
+import 'package:hive/hive.dart';
 import 'package:html/dom.dart';
 
 class DiUser {
@@ -60,4 +63,14 @@ class DiAccount {
   final int userId;
 
   DiAccount(this.surname, this.name, this.patronymic, this.userId);
+
+  factory DiAccount.fromHiveBox() {
+    final box = Hive.box<Account>(Constants.accountBoxName);
+    final account = box.getAt(0);
+
+    if (account == null)
+      throw "";
+
+    return new DiAccount(account.surname, account.name, account.patronymic, account.userId);
+  }
 }

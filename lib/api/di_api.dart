@@ -1,50 +1,39 @@
+import 'package:dispace/models/auth.dart';
+import 'package:dispace/services/constants.dart';
+import 'package:hive/hive.dart';
 import 'package:http/http.dart' as Http;
 import 'package:html/parser.dart' show parse;
 
 import 'di/users.dart';
 
 class DiApi {
-  static const _home_url = "https://dispace.edu.nstu.ru/";
-  static const _personal_url = "https://dispace.edu.nstu.ru/personal/index";
+  static const _personal_url = "https://dispace.edu.nstu.ru/personal";
 
   DiAccount? _user;
-  final _session;
+  String _session = "";
 
   DiAccount? get user => _user;
 
-  DiApi(this._session);
-
   Future<void> initialize() async {
-    final mainPage = await _get(_home_url);
+    final box = Hive.box<Auth>(Constants.authBoxName);
+    final auth = box.getAt(0);
 
-    if (mainPage.statusCode != 200)
-      throw '';
+    if (auth == null)
+      throw "";
 
-    final document = parse(mainPage.body);
-    final userInput = document.getElementById("user_info");
-
-    if (userInput == null)
-      throw '';
-
-    final surname = userInput.attributes["surname"]!;
-    final name = userInput.attributes["name"]!;
-    final patronymic = userInput.attributes["patronymic"]!;
-    final userId = int.parse(userInput.attributes["user_id"]!);
-
-    _user = new DiAccount(surname, name, patronymic, userId);
+    _session = auth.session;
+    _user = DiAccount.fromHiveBox();
   }
 
   Future<DiUser> getUserById(int id) async {
-    final userPage = await _get("$_personal_url/$id");
+    final userPage = await _get("$_personal_url/index/$id");
 
-    if (userPage.statusCode != 200)
-      throw '';
+    if (userPage.statusCode != 200) throw '';
 
     final document = parse(userPage.body);
     final userInput = document.getElementById("user_info");
 
-    if (userInput == null)
-      throw '';
+    if (userInput == null) throw '';
 
     return DiUser.fromHTML(id, document);
   }
@@ -53,11 +42,9 @@ class DiApi {
     final uri = Uri.parse(url);
 
     final _headers = new Map<String, String>();
-    if (headers != null)
-      _headers.addAll(headers);
+    if (headers != null) _headers.addAll(headers);
 
     _headers["cookie"] = "dispace=$_session; ${_headers["cookie"]}";
-    //_headers["user-agent"] = _user_agent;
 
     return Http.get(uri, headers: _headers);
   }

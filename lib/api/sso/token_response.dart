@@ -8,9 +8,8 @@ class SsoTokenResponse {
   String get successUrl => _successUrl;
 
   factory SsoTokenResponse.fromJson(Map<String, dynamic> json) {
-    final tokenId = json['tokenId'],
-        successUrl = json['successUrl'];
-    
+    final tokenId = json['tokenId'], successUrl = json['successUrl'];
+
     return new SsoTokenResponse(tokenId, successUrl);
   }
 

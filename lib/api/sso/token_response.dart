@@ -1,8 +1,8 @@
 class SsoTokenResponse {
-  String _tokenId;
-  String _successUrl;
+  final String _tokenId;
+  final String _successUrl;
 
-  SsoTokenResponse(this._tokenId, this._successUrl);
+  const SsoTokenResponse(this._tokenId, this._successUrl);
 
   String get tokenId => _tokenId;
   String get successUrl => _successUrl;

@@ -1,3 +1,4 @@
+import 'package:dispace/api/di/chip.dart';
 import 'package:dispace/api/di/users.dart';
 import 'package:dispace/api/di_api.dart';
 import 'package:dispace/api/sso_api.dart';
@@ -10,7 +11,7 @@ class MyHomePage extends StatefulWidget {
 
 class _MyHomePageState extends State<MyHomePage> {
   SsoApi ssoApi = new SsoApi();
-  DiApi? diApi;
+  DiApi diApi = DiApi();
   bool isGuest = false;
   DiUser? user;
   String session = "Empty";
@@ -38,17 +39,16 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   void getUser() async {
-    if (diApi == null) {
-      diApi = new DiApi();
-    }
-
-    await diApi!.initialize();
-    final _user = await diApi!.getUserById(84873);
+    final _user = await diApi.getUserById(84873);
 
     setState(() {
       user = _user;
     });
     return;
+  }
+
+  Future<List<DiChip>> receiveSomething() async {
+    return diApi.getSemesterList();
   }
 
   @override
@@ -82,7 +82,7 @@ class _MyHomePageState extends State<MyHomePage> {
             TextButton(
               onPressed: getUser,
               child: const Text("Get user by id"),
-            )
+            ),
           ],
         ),
       ),

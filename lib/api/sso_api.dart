@@ -73,7 +73,7 @@ class SsoApi {
     final json = jsonDecode(response.body);
     try {
       _ssoResponse = SsoFormResponse.fromJson(json);
-    } catch (Exception) {
+    } catch (ex) {
       return false;
     }
 
@@ -151,7 +151,7 @@ class SsoApi {
   }
 
   Future<void> _setUserInfo(String html) async {
-    final box = Hive.box<Account>(Constants.accountBoxName);
+    final box = Hive.box<Account>(SharedConstants.accountBoxName);
     await box.clear();
 
     final document = parse(html);
@@ -169,7 +169,7 @@ class SsoApi {
   }
 
   Future<void> _setAuthInfo() async {
-    final box = Hive.box<Auth>(Constants.authBoxName);
+    final box = Hive.box<Auth>(SharedConstants.authBoxName);
     await box.clear();
 
     final auth = new Auth(session, token, DateTime.now());

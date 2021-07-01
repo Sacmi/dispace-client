@@ -2,7 +2,7 @@ import 'package:hive/hive.dart';
 
 part 'credentials.g.dart';
 
-@HiveType(typeId: 3)
+@HiveType(typeId: 2)
 class Credentials extends HiveObject {
   Credentials(this.email, this.password, this.label);
 

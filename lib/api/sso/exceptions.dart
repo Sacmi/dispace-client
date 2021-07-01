@@ -1,11 +1,11 @@
 class SsoInvalidCredentialsException implements Exception {
-  String cause;
-  SsoInvalidCredentialsException(this.cause);
+  final String cause;
+  const SsoInvalidCredentialsException(this.cause);
 }
 
 class SsoConnectionException implements Exception {
-  String cause;
-  SsoConnectionException(this.cause);
+  final String cause;
+  const SsoConnectionException(this.cause);
 }
 
 class SsoCookiesEmptyException implements Exception {}

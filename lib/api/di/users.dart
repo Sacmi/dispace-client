@@ -14,12 +14,12 @@ class DiUser {
   final String cipher;
   final String group;
 
-  DiUser(this.surname, this.name, this.patronymic, this.userId,
+  const DiUser(this.surname, this.name, this.patronymic, this.userId,
       this.photoUrl, this.city, this.country, this.cipher, this.group);
 
   factory DiUser.fromHTML(int userId, Document document) {
-    final fullName = document.getElementsByClassName("subtitle")[0]
-        .attributes["title"]!;
+    final fullName =
+        document.getElementsByClassName("subtitle")[0].attributes["title"]!;
     final fullNameSplit = fullName.split(" ");
 
     final surname = fullNameSplit[0];
@@ -49,10 +49,11 @@ class DiUser {
       }
     }
 
+    // TODO: сделать загрузку фотографии
     String photoUrl = "";
 
-    return new DiUser(surname, name, patronymic,
-        userId, photoUrl, city, country, cipher, group);
+    return new DiUser(surname, name, patronymic, userId, photoUrl, city,
+        country, cipher, group);
   }
 }
 
@@ -62,15 +63,15 @@ class DiAccount {
   final String patronymic;
   final int userId;
 
-  DiAccount(this.surname, this.name, this.patronymic, this.userId);
+  const DiAccount(this.surname, this.name, this.patronymic, this.userId);
 
   factory DiAccount.fromHiveBox() {
-    final box = Hive.box<Account>(Constants.accountBoxName);
+    final box = Hive.box<Account>(SharedConstants.accountBoxName);
     final account = box.getAt(0);
 
-    if (account == null)
-      throw "";
+    if (account == null) throw "";
 
-    return new DiAccount(account.surname, account.name, account.patronymic, account.userId);
+    return new DiAccount(
+        account.surname, account.name, account.patronymic, account.userId);
   }
 }

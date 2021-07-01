@@ -1,7 +1,7 @@
+import 'package:dispace/services/hive.dart';
 import 'package:flutter/material.dart';
 
-import 'pages/main_page.dart';
-import 'services/hive.dart';
+import 'package:dispace/pages/main_page.dart';
 
 void main() async {
   await initializeHive();
